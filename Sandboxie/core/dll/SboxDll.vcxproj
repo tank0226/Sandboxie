@@ -95,6 +95,7 @@
       <CompileAs>Default</CompileAs>
       <OmitFramePointers />
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
       <AdditionalDependencies>ntdll.lib;uuid.lib;kernel32.lib</AdditionalDependencies>
@@ -115,6 +116,7 @@
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <CompileAs>Default</CompileAs>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
       <AdditionalDependencies>ntdll.lib;uuid.lib;kernel32.lib</AdditionalDependencies>
@@ -373,6 +375,7 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\apps\com\common.h" />
     <ClInclude Include="..\..\common\pattern.h" />
     <ClInclude Include="..\..\common\pool.h" />
     <ClInclude Include="..\..\common\stream.h" />

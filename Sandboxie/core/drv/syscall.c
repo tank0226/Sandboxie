@@ -29,6 +29,7 @@
 #include "api.h"
 #include "util.h"
 #include "session.h"
+#include "conf.h"
 
 
 
@@ -253,6 +254,8 @@ _FX BOOLEAN Syscall_Init_List(void)
         for (name_len = 0; (name_len < 64) && name[name_len]; ++name_len)
             ;
 
+        //DbgPrint("    Found SysCall %s\n", name);
+
         entry = NULL;
 
         //
@@ -371,19 +374,6 @@ next_zwxxx:
         Log_Msg1(MSG_1113, L"500");
         return FALSE;
     }
-
-    //
-    // workaround for Online Armor driver
-    //
-
-#ifndef _WIN64
-
-    if (1) {
-        extern void Syscall_HandleOADriver(void);
-        Syscall_HandleOADriver();
-    }
-
-#endif ! _WIN64
 
     return TRUE;
 }
@@ -731,7 +721,7 @@ _FX NTSTATUS Syscall_Api_Invoke(PROCESS *proc, ULONG64 *parms)
 
     if (proc->terminated) {
 
-        Process_CancelProcess(proc);
+        Process_TerminateProcess(proc);
         return STATUS_PROCESS_IS_TERMINATING;
     }
 
@@ -857,7 +847,7 @@ _FX NTSTATUS Syscall_Api_Invoke(PROCESS *proc, ULONG64 *parms)
             if (hConnection)
             {
                 WCHAR trace_str[128];
-                swprintf(trace_str, L"[syscall] %.*S, status = 0x%X, handle = %X; ", //59 chars + entry->name
+                RtlStringCbPrintfW(trace_str, sizeof(trace_str), L"[syscall] %.*S, status = 0x%X, handle = %X; ", //59 chars + entry->name
                     max(strlen(entry->name), 64), entry->name,
                     status, hConnection);
                 const WCHAR* strings[3] = { trace_str, puStr ? puStr->Buffer : NULL, NULL };
@@ -870,7 +860,7 @@ _FX NTSTATUS Syscall_Api_Invoke(PROCESS *proc, ULONG64 *parms)
         if (!traced && ((proc->call_trace & TRACE_ALLOW) || ((status != STATUS_SUCCESS) && (proc->call_trace & TRACE_DENY))))
         {
             WCHAR trace_str[128];
-            swprintf(trace_str, L"[syscall] %.*S, status = 0x%X", //59 chars + entry->name
+            RtlStringCbPrintfW(trace_str, sizeof(trace_str), L"[syscall] %.*S, status = 0x%X", //59 chars + entry->name
                 max(strlen(entry->name), 64), entry->name,
                 status);
             const WCHAR* strings[2] = { trace_str, NULL };
@@ -902,7 +892,7 @@ _FX NTSTATUS Syscall_Api_Invoke(PROCESS *proc, ULONG64 *parms)
 
     if (proc->terminated) {
 
-        Process_CancelProcess(proc);
+        Process_TerminateProcess(proc);
         return STATUS_PROCESS_IS_TERMINATING;
     }
 
@@ -949,7 +939,7 @@ _FX NTSTATUS Syscall_Api_Query(PROCESS *proc, ULONG64 *parms)
     // caller must be our service process
     //
 
-    if (proc)// || (PsGetCurrentProcessId() != Api_ServiceProcessId))
+    if (proc || (PsGetCurrentProcessId() != Api_ServiceProcessId))
         return STATUS_ACCESS_DENIED;
 
     //

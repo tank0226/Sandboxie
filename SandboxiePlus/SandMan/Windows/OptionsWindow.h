@@ -45,12 +45,12 @@ private slots:
 	void OnForceProg();
 	void OnForceDir();
 	void OnDelForce();
-	void OnShowForceTmpl()			{ LoadForced(); }
+	void OnShowForceTmpl()			{ LoadForcedTmpl(true); }
 
 	void OnAddLingering();
 	void OnAddLeader();
 	void OnDelStopProg();
-	void OnShowStopTmpl()			{ LoadStop(); }
+	void OnShowStopTmpl()			{ LoadStopTmpl(true); }
 
 	void OnRestrictStart();
 	void OnAddStartProg();
@@ -60,7 +60,7 @@ private slots:
 	void OnAddINetProg();
 	void OnDelINetProg();
 
-	void OnAccessItemClicked(QTreeWidgetItem* pItem, int Column);
+	//void OnAccessItemClicked(QTreeWidgetItem* pItem, int Column);
 	void OnAccessItemDoubleClicked(QTreeWidgetItem* pItem, int Column);
 	void OnAccessSelectionChanged() { CloseAccessEdit(); }
 
@@ -72,13 +72,13 @@ private slots:
 	void OnAddWnd()					{ AddAccessEntry(eWnd, eDirect, "", ""); }
 	void OnAddCOM()					{ AddAccessEntry(eCOM, eDirect, "", ""); }
 	void OnDelAccess();
-	void OnShowAccessTmpl()			{ LoadAccessList(); }
+	void OnShowAccessTmpl()			{ LoadAccessListTmpl(true); }
 
 	void OnAddRecFolder();
 	void OnAddRecIgnore();
 	void OnAddRecIgnoreExt();
 	void OnDelRecEntry();
-	void OnShowRecoveryTmpl()		{ LoadRecoveryList(); }
+	void OnShowRecoveryTmpl()		{ LoadRecoveryListTmpl(true); }
 
 	void OnAddAutoExec();
 	void OnDelAutoExec();
@@ -96,6 +96,8 @@ private slots:
 	void OnTemplateDoubleClicked(QTreeWidgetItem* pItem, int Column);
 	void OnAddTemplates();
 	void OnDelTemplates();
+	void OnFolderChanged();
+	void OnScreenReaders();
 
 	void OnTab();
 
@@ -104,6 +106,7 @@ private slots:
 	//void OnRestrictionChanged()		{ m_RestrictionChanged = true; }
 	void OnINetBlockChanged()		{ m_INetBlockChanged = true; }
 	void OnRecoveryChanged()		{ m_RecoveryChanged = true; }
+	void OnAccessChanged()			{ m_AccessChanged = true; }
 	void OnAdvancedChanged();
 	void OnDebugChanged();
 
@@ -184,15 +187,18 @@ protected:
 	void SaveGroups();
 
 	void LoadForced();
+	void LoadForcedTmpl(bool bUpdate = false);
 	void AddForcedEntry(const QString& Name, int type, const QString& Template = QString());
 	void SaveForced();
 
 	void LoadStop();
+	void LoadStopTmpl(bool bUpdate = false);
 	void AddStopEntry(const QString& Name, int type, const QString& Template = QString());
 	void SaveStop();
 
 	QString	AccessTypeToName(EAccessEntry Type);
 	void LoadAccessList();
+	void LoadAccessListTmpl(bool bUpdate = false);
 	QString	GetAccessTypeStr(EAccessType Type);
 	QString	GetAccessModeStr(EAccessMode Mode);
 	void ParseAndAddAccessEntry(EAccessEntry EntryType, const QString& Value, const QString& Template = QString());
@@ -206,6 +212,7 @@ protected:
 	void CloseAccessEdit(QTreeWidgetItem* pItem, bool bSave = true);
 
 	void LoadRecoveryList();
+	void LoadRecoveryListTmpl(bool bUpdate = false);
 	void AddRecoveryEntry(const QString& Name, int type, const QString& Template = QString());
 	void SaveRecoveryList();
 
@@ -213,8 +220,14 @@ protected:
 	void ShowTemplates();
 	void SaveTemplates();
 
+	void LoadFolders();
+	void ShowFolders();
+	void SaveFolders();
+
 	void LoadIniSection();
 	void SaveIniSection();
+
+	QString GetCategoryName(const QString& Category);
 
 	bool m_ConfigDirty;
 	QColor m_BorderColor;
@@ -228,6 +241,7 @@ protected:
 	bool m_INetBlockChanged;
 	bool m_AccessChanged;
 	bool m_TemplatesChanged;
+	bool m_FoldersChanged;
 	bool m_RecoveryChanged;
 	bool m_AdvancedChanged;
 
@@ -238,6 +252,7 @@ protected:
 	QMultiMap<QString, QPair<QString, QString>> m_AllTemplates;
 	QStringList m_GlobalTemplates;
 	QStringList m_BoxTemplates;
+	QStringList m_BoxFolders;
 
 	QList<QPair<QString, QString>> m_Settings;
 
@@ -249,6 +264,8 @@ private:
 	void ReadAdvancedCheck(const QString& Name, QCheckBox* pCheck, const QString& Value = "y");
 	void WriteAdvancedCheck(QCheckBox* pCheck, const QString& Name, const QString& Value = "y");
 	void WriteAdvancedCheck(QCheckBox* pCheck, const QString& Name, const QString& OnValue, const QString& OffValue);
+	void WriteText(const QString& Name, const QString& Value);
+	void WriteTextList(const QString& Setting, const QStringList& List);
 
 	Ui::OptionsWindow ui;
 

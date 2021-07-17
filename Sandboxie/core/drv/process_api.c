@@ -426,6 +426,18 @@ _FX NTSTATUS Process_Api_QueryInfo(PROCESS *proc, ULONG64 *parms)
                 ObDereferenceObject(object);
             }
 
+        } else if (args->info_type.val == 'spit') { // set process image type
+
+            if (ProcessId != 0)
+                status = STATUS_ACCESS_DENIED;
+            
+            proc->detected_image_type = (ULONG)(args->ext_data.val);
+            *data = 0;
+
+        } else if (args->info_type.val == 'gpit') { // get process image type
+            
+            *data = proc->detected_image_type;
+
         } else
             status = STATUS_INVALID_INFO_CLASS;
 
@@ -637,8 +649,8 @@ _FX NTSTATUS Process_Api_QueryPathList(PROCESS *proc, ULONG64 *parms)
 
     } else {
 
-        if (! MyIsCurrentProcessRunningAsLocalSystem())
-            return STATUS_NOT_IMPLEMENTED;
+        //if (! MyIsCurrentProcessRunningAsLocalSystem())
+        //    return STATUS_NOT_IMPLEMENTED;
 
         proc = Process_Find(args->process_id.val, &irql);
 
@@ -818,9 +830,26 @@ _FX NTSTATUS Process_Enumerate(
     __try {
 
         num = 0;
+
+#ifdef USE_PROCESS_MAP
+
+        //
+        // quick shortcut for global count retrival
+        //
+
+        if (pids == NULL && (! boxname[0]) && all_sessions) { // no pids, all boxes, all sessions
+
+            num = Process_Map.nnodes;
+            goto done;
+        }
+
+	    map_iter_t iter = map_iter();
+	    while (map_next(&Process_Map, &iter)) {
+            proc1 = iter.value;
+#else
         proc1 = List_Head(&Process_List);
         while (proc1) {
-
+#endif
             BOX *box1 = proc1->box;
             if (box1 && !proc1->bHostInject) {
                 BOOLEAN same_box =
@@ -837,9 +866,14 @@ _FX NTSTATUS Process_Enumerate(
                 }
             }
 
+#ifndef USE_PROCESS_MAP
             proc1 = (PROCESS *)List_Next(proc1);
+#endif
         }
 
+#ifdef USE_PROCESS_MAP
+        done:
+#endif
         *count = num;
 
         status = STATUS_SUCCESS;

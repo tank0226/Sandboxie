@@ -88,7 +88,7 @@ static NTSTATUS Api_ProcessExemptionControl(PROCESS *proc, ULONG64 *parms);
 
 static P_Api_Function *Api_Functions = NULL;
 
-static DEVICE_OBJECT *Api_DeviceObject = NULL;
+DEVICE_OBJECT *Api_DeviceObject = NULL;
 
 static FAST_IO_DISPATCH *Api_FastIoDispatch = NULL;
 
@@ -590,8 +590,10 @@ _FX NTSTATUS Api_LogMessage(PROCESS *proc, ULONG64 *parms)
         msgid = msgid - 2301 + MSG_2301;
     else if (msgid == 1314)
         msgid = MSG_1314;
+    else if (msgid == 1307)
+        msgid = MSG_1307;
     else
-        msgid = MSG_2301;
+        msgid = MSG_2301; // unknown message
 
     msgtext = args->msgtext.val;
     if (! msgtext)
@@ -1068,6 +1070,11 @@ _FX NTSTATUS Api_SetServicePort(PROCESS *proc, ULONG64 *parms)
     if ((! proc) && MyIsCallerMyServiceProcess()) {
 
         status = STATUS_SUCCESS;
+    }
+
+    if (NT_SUCCESS(status) && !MyIsCallerSigned()) {
+    
+        status = STATUS_INVALID_SIGNATURE;
     }
 
     //

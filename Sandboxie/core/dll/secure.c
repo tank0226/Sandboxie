@@ -96,6 +96,7 @@ static NTSTATUS Secure_RtlCheckTokenMembershipEx(
 
 static BOOLEAN Secure_IsSameBox(HANDLE idProcess);
 
+static BOOLEAN Secure_IsBuiltInAdmin();
 
 //---------------------------------------------------------------------------
 
@@ -281,9 +282,10 @@ _FX BOOLEAN Secure_Init(void)
 
     //
     // install hooks to fake administrator privileges
+    // note: when running as the built in administrator we should always act as if we have admin rights
     //
 
-    Secure_FakeAdmin = Config_GetSettingsForImageName_bool(L"FakeAdminRights", FALSE);
+    Secure_FakeAdmin = Config_GetSettingsForImageName_bool(L"FakeAdminRights", Secure_IsBuiltInAdmin());
 
     RtlQueryElevationFlags =
         GetProcAddress(Dll_Ntdll, "RtlQueryElevationFlags");
@@ -1086,6 +1088,54 @@ _FX BOOLEAN Secure_IsRestrictedToken(BOOLEAN CheckThreadToken)
 
 
 //---------------------------------------------------------------------------
+// Secure_IsTokenLocalSystem
+//---------------------------------------------------------------------------
+
+
+_FX BOOL Secure_IsTokenLocalSystem(HANDLE hToken)
+{
+    NTSTATUS status;
+    BOOLEAN return_value = FALSE;
+
+    ULONG64 user_space[88];
+    PTOKEN_USER user = (PTOKEN_USER)user_space;
+    ULONG len;
+
+    len = sizeof(user_space);
+    status = NtQueryInformationToken(
+                        hToken, TokenUser, user, len, &len);
+
+    if (status == STATUS_BUFFER_TOO_SMALL) {
+
+        user = Dll_AllocTemp(len);
+        status = NtQueryInformationToken(
+                        hToken, TokenUser, user, len, &len);
+    }
+
+    if (NT_SUCCESS(status)) {
+
+        UNICODE_STRING SidString;
+
+        status = RtlConvertSidToUnicodeString(
+            &SidString, user->User.Sid, TRUE);
+
+        if (NT_SUCCESS(status)) {
+
+            if (_wcsicmp(SidString.Buffer, L"S-1-5-18") == 0)
+                return_value = TRUE;
+
+            RtlFreeUnicodeString(&SidString);
+        }
+    }
+
+    if (user != (PTOKEN_USER)user_space)
+        Dll_Free(user);
+
+    return return_value;
+}
+
+
+//---------------------------------------------------------------------------
 // Secure_IsLocalSystemToken
 //---------------------------------------------------------------------------
 
@@ -1119,39 +1169,7 @@ _FX BOOLEAN Secure_IsLocalSystemToken(BOOLEAN CheckThreadToken)
 
     if (NT_SUCCESS(status)) {
 
-        ULONG64 user_space[8];
-        PTOKEN_USER user = (PTOKEN_USER)user_space;
-        ULONG len;
-
-        len = sizeof(user_space);
-        status = NtQueryInformationToken(
-                            hToken, TokenUser, user, len, &len);
-
-        if (status == STATUS_BUFFER_TOO_SMALL) {
-
-            user = Dll_AllocTemp(len);
-            status = NtQueryInformationToken(
-                            hToken, TokenUser, user, len, &len);
-        }
-
-        if (NT_SUCCESS(status)) {
-
-            UNICODE_STRING SidString;
-
-            status = RtlConvertSidToUnicodeString(
-                &SidString, user->User.Sid, TRUE);
-
-            if (NT_SUCCESS(status)) {
-
-                if (_wcsicmp(SidString.Buffer, L"S-1-5-18") == 0)
-                    return_value = TRUE;
-
-                RtlFreeUnicodeString(&SidString);
-            }
-        }
-
-        if (user != (PTOKEN_USER)user_space)
-            Dll_Free(user);
+        return_value = Secure_IsTokenLocalSystem(hToken);
 
         NtClose(hToken);
     }
@@ -1176,6 +1194,22 @@ _FX BOOLEAN Secure_IsSameBox(HANDLE idProcess)
     if (session_id != Dll_SessionId)
         return FALSE;
     if (_wcsicmp(boxname, Dll_BoxName) != 0)
+        return FALSE;
+    return TRUE;
+}
+
+
+//---------------------------------------------------------------------------
+// Secure_IsBuiltInAdmin
+//---------------------------------------------------------------------------
+
+
+_FX BOOLEAN Secure_IsBuiltInAdmin()
+{
+    // Check if this is the built in administrator account its SID is always: S-1-5-21-domain-500
+    if (_wcsnicmp(Dll_SidString, L"S-1-5-21-", 9) != 0)
+        return FALSE;
+    if (Dll_SidStringLen < 4 || _wcsnicmp(Dll_SidString + Dll_SidStringLen - 4, L"-500", 4) != 0)
         return FALSE;
     return TRUE;
 }

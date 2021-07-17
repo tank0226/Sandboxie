@@ -79,6 +79,11 @@ static NTSTATUS Ipc_Api_QuerySymbolicLink(PROCESS *proc, ULONG64 *parms);
 //---------------------------------------------------------------------------
 
 
+NTSTATUS Thread_GetKernelHandleForUserHandle(
+    HANDLE *OutKernelHandle, HANDLE InUserHandle);
+
+//---------------------------------------------------------------------------
+
 #ifdef ALLOC_PRAGMA
 #pragma alloc_text (INIT, Ipc_Init)
 #pragma alloc_text (INIT, Ipc_Init_Type)
@@ -942,12 +947,12 @@ _FX NTSTATUS Ipc_CheckGenericObject(
                     mon_type |= MONITOR_DENY;
             }
 
-            swprintf(access_str, L"(I%c) %08X", letter, GrantedAccess);
+            RtlStringCbPrintfW(access_str, sizeof(access_str), L"(I%c) %08X", letter, GrantedAccess);
             Log_Debug_Msg(mon_type, access_str, Name->Buffer);
         }
     }
 
-    else if (Session_MonitorCount) {
+    else if (Session_MonitorCount && !proc->disable_monitor) {
 
         ULONG mon_type = MONITOR_IPC;
         WCHAR *mon_name = Name->Buffer;
@@ -990,7 +995,7 @@ _FX NTSTATUS Ipc_CheckPortObject(
 
 
 _FX NTSTATUS Ipc_CheckJobObject(
-    PROCESS *proc, void *Object, UNICODE_STRING *Name,
+    PROCESS* proc, void* Object, UNICODE_STRING* Name,
     ACCESS_MASK GrantedAccess)
 {
     //
@@ -1001,9 +1006,10 @@ _FX NTSTATUS Ipc_CheckJobObject(
     // is inside the sandbox
     //
 
-    if (!Conf_Get_Boolean(proc->box->name, L"NoAddProcessToJob", 0, FALSE))
-    if (GrantedAccess & (JOB_OBJECT_ASSIGN_PROCESS | JOB_OBJECT_TERMINATE))
-        return STATUS_ACCESS_DENIED;
+    if (!proc->can_use_jobs) {
+        if (GrantedAccess & (JOB_OBJECT_ASSIGN_PROCESS | JOB_OBJECT_TERMINATE))
+            return STATUS_ACCESS_DENIED;
+    }
 
     if (! Name->Length)
         return STATUS_ACCESS_DENIED;
@@ -1158,17 +1164,32 @@ _FX NTSTATUS Ipc_Api_DuplicateObject(PROCESS *proc, ULONG64 *parms)
         // wont be able to grab it while we are evaluaiting it
         //
 
-        status = ZwDuplicateObject(
-                        SourceProcessHandle, SourceHandle,
-                        TargetProcessHandle, &TestHandle,
-                        DesiredAccess, HandleAttributes,
-                        Options & ~DUPLICATE_CLOSE_SOURCE);
-
+        HANDLE SourceProcessKernelHandle;
+        status = Thread_GetKernelHandleForUserHandle(&SourceProcessKernelHandle, SourceProcessHandle);
         if (NT_SUCCESS(status)) {
 
-            status = Ipc_CheckObjectName(TestHandle, KernelMode);
+            HANDLE TargetProcessKernelHandle = ZwCurrentProcess(); // TargetProcessHandle == NtCurrentProcess();
+            
+            //
+            // driver verifier wants us to provide a kernel handle as process handles
+            // but the source handle must be a user handle and the ZwDuplicateObject
+            // function creates an otehr user handle hence NtClose
+            //
 
-            ZwClose(TestHandle);
+            status = ZwDuplicateObject(
+                SourceProcessKernelHandle, SourceHandle,
+                TargetProcessKernelHandle, &TestHandle,
+                DesiredAccess, HandleAttributes,
+                Options & ~DUPLICATE_CLOSE_SOURCE);
+
+            if (NT_SUCCESS(status)) {
+
+                status = Ipc_CheckObjectName(TestHandle, UserMode);
+
+                NtClose(TestHandle);
+            }
+
+            ZwClose(SourceProcessKernelHandle);
         }
 
     } else

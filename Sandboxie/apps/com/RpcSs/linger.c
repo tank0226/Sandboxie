@@ -471,8 +471,7 @@ int DoLingerLeader(void)
                 HANDLE ProcessHandle = 0;
                 SbieApi_OpenProcess(&ProcessHandle, pids_i);
                 if (ProcessHandle) {
-                    extern BOOL CheckProcessLocalSystem(HANDLE); // common.h
-                    if (CheckProcessLocalSystem(ProcessHandle))
+                    if (SbieDll_CheckProcessLocalSystem(ProcessHandle))
                         is_local_system_sid = TRUE;
                     CloseHandle(ProcessHandle);
                 }
@@ -488,6 +487,8 @@ int DoLingerLeader(void)
                     // are also children of start.exe, but in that case,
                     // is_local_system_sid would be TRUE and we would not
                     // reach this point.)
+                    //
+                    // fix-me: services are no longer started by default as system
                     //
 
                     ULONG64 ProcessFlags =

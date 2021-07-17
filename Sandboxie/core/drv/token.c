@@ -483,6 +483,15 @@ _FX void *Token_FilterPrimary(PROCESS *proc, void *ProcessObject)
 
     DropRights = (proc->drop_rights ? -1 : 0);
 
+    //
+    // special allowance for MSIServer - it does not seem to be needed with the CreateWaitableTimerW hook
+    //
+    //if (DropRights && !proc->image_from_box && _wcsicmp(proc->image_name, L"msiexec.exe") == 0
+    //    && Conf_Get_Boolean(proc->box->name, L"MsiInstallerExemptions", 0, FALSE)) 
+    //{
+    //    DropRights = 0;
+    //}
+
     // DbgPrint("   Drop rights %d - %d <%S>\n", proc->drop_rights, proc->pid, proc->image_name);
 
     ReturnToken = Token_Filter(
@@ -1237,8 +1246,8 @@ _FX void *Token_RestrictHelper1(
             if (SidInToken && SidInToken[1] >= 1) { // SubAuthorityCount >= 1
 
 				PSID NewSid = NULL;
-
-				// SbieLogin BEGIN
+                
+                // SbieLogin BEGIN
 				if (Conf_Get_Boolean(proc->box->name, L"SandboxieLogon", 0, FALSE))
 				{
 					if (SandboxieLogonSid[0] != 0)
@@ -1558,6 +1567,8 @@ _FX NTSTATUS Token_AssignPrimaryHandle(
     // on Windows Vista and later, we need to clear the PrimaryTokenFrozen
     // bit in the EPROCESS structure before we can replace the primary token
 
+    // Hard Offset Dependency
+
     // dt nt!_eprocess
 
     if (Driver_OsVersion >= DRIVER_WINDOWS_VISTA) {
@@ -1646,6 +1657,10 @@ _FX NTSTATUS Token_AssignPrimaryHandle(
             }
 
         }
+
+        /*WCHAR msg[256];
+		swprintf(msg, L"BAM: Flags2_Offset=%d MitigationFlags_Offset=%d SignatureLevel_Offset=%d\n", Flags2_Offset, MitigationFlags_Offset, SignatureLevel_Offset);
+		Session_MonitorPut(MONITOR_OTHER, msg, PsGetCurrentProcessId());*/
 
 #endif _WIN64
 

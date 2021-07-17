@@ -43,9 +43,8 @@ CSandBox::CSandBox(const QString& BoxName, class CSbieAPI* pAPI) : CSbieIni(BoxN
 
 	// when loading a sandbox that is not initialized, initialize it
 	int cfglvl = GetNum("ConfigLevel");
-	if (cfglvl >= 8)
+	if (cfglvl >= 9)
 		return;
-	SetNum("ConfigLevel", 8);
 
 	if (cfglvl == 0)
 	{
@@ -84,7 +83,27 @@ CSandBox::CSandBox(const QString& BoxName, class CSbieAPI* pAPI) : CSbieIni(BoxN
 		InsertText("Template", "FileCopy");
 		InsertText("Template", "SkipHook");
 	}
+	
+	if (cfglvl < 9)
+	{
+		// fix the unfortunate typo
+		if (GetTextList("Template", false).contains("FileCppy"))
+		{
+			InsertText("Template", "FileCopy");
+			DelValue("Template", "FileCppy");
+		}
 
+		DelValue("Template", "WindowsFontCache");
+
+		// templates L9
+		if (GetBool("DropAdminRights", false) == false) 
+		{
+			// enable those templates only for non hardened boxes
+			InsertText("Template", "OpenBluetooth");
+		}
+	}
+
+	SetNum("ConfigLevel", 9);
 }
 
 CSandBox::~CSandBox()
@@ -163,7 +182,13 @@ void CSandBox::CleanBoxAsync(const CSbieProgressPtr& pProgress, const QStringLis
 
 	foreach(const QString& Folder, BoxFolders)
 	{
-		Status = CSandBox__DeleteFolder(pProgress, Folder);
+		for (int i = 0; i < 10; i++) {
+			Status = CSandBox__DeleteFolder(pProgress, Folder);
+			if (!Status.IsError())
+				break;
+			QThread::sleep(1); // wait a second
+		}
+
 		if (Status.IsError())
 			break;
 	}

@@ -23,6 +23,7 @@ class CBoxBorder;
 class CSbieTemplates;
 class CTraceView;
 
+
 class CSandMan : public QMainWindow
 {
 	Q_OBJECT
@@ -46,6 +47,12 @@ public:
 	bool				IsFullyPortable();
 
 	bool				IsShowHidden() { return m_pShowHidden->isChecked(); }
+
+	CSbieView*			GetBoxView() { return m_pBoxView; }
+
+	void				RunSandboxed(const QStringList& Commands);
+
+	QIcon				GetBoxIcon(bool inUse, int boxType = 0);
 
 protected:
 	SB_STATUS			ConnectSbie();
@@ -74,6 +81,22 @@ protected:
 
 	QStringList			m_MissingTemplates;
 
+	enum EBoxColors
+	{
+		eYelow = 0,
+		eRed,
+		eGreen,
+		eBlue,
+		eCyan,
+		eMagenta,
+		eOrang,
+		eMaxColor
+	};
+
+	QMap<EBoxColors, QPair<QIcon, QIcon> > m_BoxIcons;
+
+	class UGlobalHotkeys* m_pHotkeyManager;
+
 public slots:
 	void				OnMessage(const QString&);
 
@@ -84,12 +107,15 @@ public slots:
 	void				OnNotAuthorized(bool bLoginRequired, bool& bRetry);
 
 	void				OnQueuedRequest(quint32 ClientPid, quint32 ClientTid, quint32 RequestId, const QVariantMap& Data);
-	void				OnFileToRecover(const QString& BoxName, const QString& FilePath, quint32 ProcessId);
+	void				OnFileToRecover(const QString& BoxName, const QString& FilePath, const QString& BoxPath, quint32 ProcessId);
 
 	void				OpenRecovery(const QString& BoxName);
 
 	void				UpdateSettings();
 	void				OnIniReloaded();
+
+	void				SetupHotKeys();
+	void				OnHotKey(size_t id);
 
 	void				OnAsyncFinished();
 	void				OnAsyncFinished(CSbieProgress* pProgress);
@@ -104,6 +130,9 @@ public slots:
 	void				OpenUrl(const QUrl& url);
 
 	int					ShowQuestion(const QString& question, const QString& checkBoxText, bool* checkBoxSetting, int buttons, int defaultButton);
+
+	void				OnBoxMenu(const QPoint &);
+	void				OnBoxDblClick(QTreeWidgetItem*);
 
 private slots:
 	void				OnSelectionChanged();
@@ -216,6 +245,8 @@ private:
 
 	QSystemTrayIcon*	m_pTrayIcon;
 	QMenu*				m_pTrayMenu;
+	QTreeWidget*		m_pTrayBoxes;
+	//QMenu*				m_pBoxMenu;
 	bool				m_bIconEmpty;
 	bool				m_bIconDisabled;
 
@@ -231,6 +262,7 @@ private:
 	void				LoadLanguage();
 	QTranslator			m_Translator;
 	QByteArray			m_Translation;
+
 public:
 	quint32				m_LanguageId;
 	bool				m_DarkTheme;

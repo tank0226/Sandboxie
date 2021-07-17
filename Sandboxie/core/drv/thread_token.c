@@ -106,7 +106,7 @@ static NTSTATUS Thread_ImpersonateAnonymousToken(
 //---------------------------------------------------------------------------
 
 
-static NTSTATUS Thread_GetKernelHandleForUserHandle(
+NTSTATUS Thread_GetKernelHandleForUserHandle(
     HANDLE *OutKernelHandle, HANDLE InUserHandle);
 
 
@@ -640,7 +640,7 @@ _FX void *Thread_SetInformationProcess_PrimaryToken_3(
     }
 
     //
-    // special allowance for MSIServer
+    // special allowance for MSIServer running without system privileges
     //
 
     if (!proc->image_from_box &&
